@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Будильник</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        #clock {
+            font-size: 72px;
+            text-align: center;
+            margin: 20px 0;
+            color: #e94560;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        input {
+            padding: 8px;
+            border-radius: 5px;
+            border: none;
+            background: #16213e;
+            color: #eee;
+            flex: 1;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .alarm-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #16213e;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="clock">00:00:00</div>
+
+    <h3>Поставити будильник</h3>
+    <div class="add-form">
+        <input type="text" id="label" placeholder="Назва будильника" />
+        <input type="time" id="time" />
+        <button onclick="addAlarm()">Додати</button>
+    </div>
+
+    <h3>Активні будильники</h3>
+    <div id="alarms-list"></div>
+
+    <script>
+        // Годинник
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+            checkAlarms(`${h}:${m}`);
+        }
+        setInterval(updateClock, 1000);
+
+        // Отримати будильники з API
+        async function loadAlarms() {
+            const res = await fetch('/api/alarms');
+            const alarms = await res.json();
+            const list = document.getElementById('alarms-list');
+            list.innerHTML = '';
+            alarms.forEach(alarm => {
+                list.innerHTML += `
+                    <div class="alarm-item">
+                        <span style="opacity: ${alarm.isActive ? '1' : '0.4'}">
+                            ${alarm.label} — ${alarm.time}
+                        </span>
+                        <div>
+                            <button onclick="toggleAlarm('${alarm._id}')">
+                                ${alarm.isActive ? '⏸ Вимкнути' : 'Увімкнути'}
+                            </button>
+                            <button onclick="deleteAlarm('${alarm._id}')">Видалити</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Додати будильник
+        async function addAlarm() {
+            const label = document.getElementById('label').value;
+            const time = document.getElementById('time').value;
+            if (!label || !time) return alert('Заповни всі поля!');
+            await fetch('/api/alarms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label, time })
+            });
+            document.getElementById('label').value = '';
+            loadAlarms();
+        }
+
+        // Видалити будильник
+        async function deleteAlarm(id) {
+            await fetch(`/api/alarms/${id}`, { method: 'DELETE' });
+            loadAlarms();
+        }
+
+        // Вмикнути/вимкнути будильник
+        async function toggleAlarm(id) {
+            await fetch(`/api/alarms/${id}`, { method: 'PATCH' });
+            loadAlarms();
+        }
+
+        // Перевірити чи настав час будильника
+        function checkAlarms(currentTime) {
+            const items = document.querySelectorAll('.alarm-item span');
+            items.forEach(item => {
+                if (item.textContent.includes(currentTime)) {
+                    alert(`Будильник! ${item.textContent.trim()}`);
+                }
+            });
+        }
+
+        loadAlarms();
+    </script>
+
+</body>
+
+</html>
